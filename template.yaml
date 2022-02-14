@@ -1,0 +1,310 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Image hosting site stack
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 30
+
+Parameters:
+  UploadBucketName:
+    Description: Name of the upload S3 bucket to create
+    Type: String
+  NotificationEmail:
+    Description: Email address to notify on processing completion
+    Type: String
+  SiteName:
+    Description: Name for site - used in HTML template for title
+    Type: String
+  Domain:
+    Description: Domain name that the image site will be hosted on - eg img.example.com
+    Type: String
+  CertArn:
+    Description: The ARN of the ACM certificate to use with the CloudFront distribution
+    Type: String
+  CreateUploadIamUser:
+    Description: Whether to create an IAM user for upload to the ingest bucket - user created if `true`
+    Type: String
+    Default: false
+    AllowedValues:
+      - true
+      - false
+
+Conditions:
+  CreateUser: !Equals
+    - !Ref CreateUploadIamUser
+    - true
+
+Resources:
+  UploadBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      BucketName: !Ref UploadBucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+            BucketKeyEnabled: true
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        # Clear input objects after 2d
+        Rules:
+          - Id: 2dExpiryRule
+            Status: Enabled
+            ExpirationInDays: 2
+      VersioningConfiguration:
+        Status: Suspended
+  UploadUser:
+    Type: AWS::IAM::User
+    Condition: CreateUser
+    Properties:
+      Policies:
+        - PolicyName: img-site-upload-bucket-write
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:s3:::${UploadBucket}"
+                  - !Sub "arn:${AWS::Partition}:s3:::${UploadBucket}/*"
+  HostingBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+            BucketKeyEnabled: true
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        # Immediately move uploaded objects to intelligent storage tier, and delete non-current (eg manually deleted) objects after 14d
+        Rules:
+          - Id: 0dIntelligentTierRule
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 0
+                StorageClass: INTELLIGENT_TIERING
+          - Id: 14dNoncurrentExpiryRule
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 14
+      VersioningConfiguration:
+        Status: Enabled
+  LoggingBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AccessControl: LogDeliveryWrite
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+            BucketKeyEnabled: true
+      ObjectLockEnabled: true
+      ObjectLockConfiguration:
+        # Keep logs for at least 7 days (in GOVERNANCE mode so overridable)
+        ObjectLockEnabled: Enabled
+        Rule:
+          DefaultRetention:
+            Days: 7
+            Mode: GOVERNANCE
+      LifecycleConfiguration:
+        # Clear logs after 60d, and clear any 'deleted' or overridden ones after 3d
+        Rules:
+          - Id: 60dLogRetention
+            Status: Enabled
+            ExpirationInDays: 60
+          - Id: 3dNoncurrentExpiryRule
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 3
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+  CloudFrontOriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Image hosting site access identity
+  S3CloudFrontReadPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref HostingBucket
+      PolicyDocument:
+        Statement:
+          - Action: "s3:GetObject"
+            Effect: Allow
+            Resource: !Sub "arn:${AWS::Partition}:s3:::${HostingBucket}/*"
+            Principal:
+              CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
+  CloudFrontCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: Default
+        MaxTTL: 31536000  # 1 year
+        DefaultTTL: 604800  # 7 days
+        MinTTL: 86400  # 1 day
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+          EnableAcceptEncodingGzip: true
+          HeadersConfig:
+            HeaderBehavior: none
+  CloudFrontRedirectFunction:
+    # Function to redirect example.com/directory/ to example.com/directory/index.html
+    Type: AWS::CloudFront::Function
+    Properties:
+      AutoPublish: true
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          request.uri = request.uri.replace(/\/$/, '\/index.html');
+          return request;
+        }
+      FunctionConfig:
+        Comment: Redirect directory level requests to index.html
+        Runtime: cloudfront-js-1.0
+      Name: img_site_folder_index_redirect
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Ref Domain
+        Comment: !Ref HostingBucket
+        CustomErrorResponses:
+          - ErrorCachingMinTTL: 300
+            ErrorCode: 403
+            ResponseCode: 403
+            ResponsePagePath: "/error.html"
+          - ErrorCachingMinTTL: 300
+            ErrorCode: 404
+            ResponseCode: 403
+            ResponsePagePath: "/error.html"
+        DefaultCacheBehavior:
+          CachePolicyId: !Ref CloudFrontCachePolicy
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: true
+          ViewerProtocolPolicy: "redirect-to-https"
+          TargetOriginId: img-site-s3origin
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt CloudFrontRedirectFunction.FunctionARN
+        Enabled: true
+        IPV6Enabled: true
+        HttpVersion: http2
+        Logging:
+          Bucket: !GetAtt LoggingBucket.DomainName
+          Prefix: "cloudfront/"
+        Origins:
+          - DomainName: !GetAtt "HostingBucket.DomainName"
+            Id: img-site-s3origin
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}'
+        PriceClass: "PriceClass_All"
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CertArn
+          MinimumProtocolVersion: TLSv1
+          SslSupportMethod: sni-only
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: ImageIngest
+      FifoTopic: false
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref NotificationEmail
+  IngestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ingest-fn/
+      Handler: ingest-fn
+      Runtime: provided.al2
+      Architectures:
+        - arm64
+      MemorySize: 128
+      Tracing: Active
+      Events:
+        S3Event:
+          Type: S3
+          Properties:
+            Bucket: !Ref UploadBucket
+            Events: s3:ObjectCreated:*
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref UploadBucketName
+        - S3WritePolicy:
+            BucketName: !Ref HostingBucket
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt NotificationTopic.TopicName
+      Environment:
+        Variables:
+          HOSTING_BUCKET: !Ref HostingBucket
+          SITE_NAME: !Ref SiteName
+          DOMAIN: !Ref Domain
+          SNS_TOPIC_ARN: !Ref NotificationTopic
+    Metadata:
+      BuildMethod: makefile
+
+Outputs:
+  CloudFrontDistributionDomainName:
+    Description: "Domain for CloudFront distribution"
+    Value: !GetAtt CloudFrontDistribution.DomainName
+    Export:
+      Name: !Sub "${AWS::StackName}-CF-domain"
+  CloudFrontDistributionId:
+    Description: "ID of the CloudFront distribution"
+    Value: !Ref CloudFrontDistribution
+    Export:
+      Name: !Sub "${AWS::StackName}-CF-id"
+  HostingBucketName:
+    Description: "Name of the hosting bucket"
+    Value: !Ref HostingBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-hosting-bucket"
+  UploadBucketName:
+    Description: "Name of the upload bucket"
+    Value: !Ref UploadBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-upload-bucket"
+  UploadUser:
+    Condition: CreateUser
+    Description: "Name of created IAM upload user"
+    Value: !Ref UploadUser
+    Export:
+      Name: !Sub "${AWS::StackName}-upload-iam-user"

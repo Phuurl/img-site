@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://{{ .Domain }}/{{ .Id }}/" />
+    <meta property="og:title" content="{{ .Id }}" />
+    <meta property="og:description" content="Uploaded image" />
+    <meta property="og:image" content="https://{{ .Domain }}/{{ .Id }}/{{ .ImageFile }}" />
+    <meta property="og:image:type" content="{{ .Type }}" />
+    <meta property="og:site_name" content="{{ .SiteName }} Images" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternative" content="en_GB" />
+    <meta property="twitter:card" content="photo" />
+    <meta property="twitter:image" content="https://{{ .Domain }}/{{ .Id }}/{{ .ImageFile }}" />
+    <meta property="twitter:title" content="Image" />
+    <title>Image | {{ .SiteName }}</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto&family=Ubuntu:wght@300&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #333; }
+        div.container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            padding: 20px;
+            -ms-transform: translateX(-50%) translateY(-50%);
+            -webkit-transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        a {
+            text-decoration: none;
+            font-size: 32px;
+            color: rgba(255, 255, 255, 1);
+            font-family: 'Ubuntu', sans-serif;
+        }
+        div.container div.open {
+            margin: 25px;
+        }
+        div.container div.open a.btn {
+            margin-bottom: 5px;
+            font-size: 12pt;
+            /*border: 1px solid #fff;*/
+            padding: 10px;
+            /*text-transform: uppercase;*/
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        div.container div.open a.btn:hover {
+            background: rgba(255, 255, 255, 1);
+            color: #333;
+        }
+        img {
+            max-width: 100%;
+            max-height: 80vh;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div>
+        <div class="image"><a href="{{ .ImageFile }}"><img src="{{ .ImageFile }}"></a></div>
+        <div class="open">
+            <a href="{{ .ImageFile }}" class="btn">VIEW FULL SIZE ({{ .Width }} x {{ .Height }})</a><br>
+        </div>
+    </div>
+</div>
+</body>
+</html>
