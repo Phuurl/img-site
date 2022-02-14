@@ -95,6 +95,7 @@ func handler(ctx context.Context, s3Event events.S3Event) error {
 
 		// Download input image for dimensions checking later
 		outFile, err := os.Create(fmt.Sprintf("/tmp/%s%s", filename, extension))
+		panicErr(err)
 		byteCount, err := io.Copy(outFile, getObjectOutput.Body)
 		fmt.Printf("[INFO] wrote %d bytes\n", byteCount)
 		panicErr(err)
@@ -118,6 +119,7 @@ func handler(ctx context.Context, s3Event events.S3Event) error {
 		html, err := template.ParseFiles("template.gohtml")
 		panicErr(err)
 		htmlFile, err := os.Create(fmt.Sprintf("/tmp/%s.html", filename))
+		panicErr(err)
 		templateParams := templateValues{
 			Domain:    domain,
 			Id:        filename,
