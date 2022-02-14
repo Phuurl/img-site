@@ -22,7 +22,7 @@ Parameters:
     Description: Domain name that the image site will be hosted on - eg img.example.com
     Type: String
   CertArn:
-    Description: The ARN of the ACM certificate to use with the CloudFront distribution
+    Description: ARN of the ACM certificate to use with the CloudFront distribution
     Type: String
   CreateUploadIamUser:
     Description: Whether to create an IAM user for upload to the ingest bucket - user created if `true`
