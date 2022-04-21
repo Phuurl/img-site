@@ -52,6 +52,54 @@ func warnErr(err error) {
 	}
 }
 
+func getImageSize(filePath string) (width int, height int, contentType string, err error) {
+	ext := path.Ext(filePath)
+	imageFile, err := os.Open(filePath)
+	if err != nil {
+		return -1, -1, "", err
+	}
+	imageReader, _, err := image.DecodeConfig(imageFile)
+	if err != nil {
+		return -1, -1, "", err
+	}
+
+	width = imageReader.Width
+	height = imageReader.Height
+	if ext == ".jpg" {
+		contentType = "image/jpeg"
+	} else {
+		contentType = fmt.Sprintf("image/%s", ext[1:])
+	}
+	err = imageFile.Close()
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func createHtml(outputPath string, templatePath string, params templateValues) (err error) {
+	html, err := template.ParseFiles(templatePath)
+	if err != nil {
+		return
+	}
+	htmlFile, err := os.Create(outputPath)
+	if err != nil {
+		return
+	}
+
+	err = html.Execute(htmlFile, params)
+	if err != nil {
+		return
+	}
+	err = htmlFile.Close()
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 func handler(ctx context.Context, s3Event events.S3Event) error {
 	cfg, err := config.LoadDefaultConfig(ctx)
 	panicErr(err)
@@ -67,7 +115,8 @@ func handler(ctx context.Context, s3Event events.S3Event) error {
 		extension := strings.ToLower(path.Ext(record.S3.Object.Key))
 		if extension != ".jpg" && extension != ".jpeg" && extension != ".png" && extension != ".gif" {
 			// Unsupported file - skip
-			fmt.Printf("[WARN] File %s skipped - only jpg/jpeg/png/gif file extensions supported\n", record.S3.Object.Key)
+			fmt.Printf("[WARN] File %s skipped - only jpg/jpeg/png/gif file extensions supported\n",
+				record.S3.Object.Key)
 			continue
 		}
 		fmt.Printf("[INFO] Processing %s from bucket %s\n", record.S3.Object.Key, record.S3.Bucket.Name)
@@ -103,40 +152,29 @@ func handler(ctx context.Context, s3Event events.S3Event) error {
 		panicErr(outFile.Close())
 
 		// Read downloaded file and assign image attributes
-		imageFile, err := os.Open(fmt.Sprintf("/tmp/%s%s", filename, extension))
+		width, height, imageContentType, err := getImageSize(fmt.Sprintf("/tmp/%s%s", filename, extension))
 		panicErr(err)
-		imageReader, _, err := image.DecodeConfig(imageFile)
-		panicErr(err)
-		width := imageReader.Width
-		height := imageReader.Height
-		imageContentType := fmt.Sprintf("image/%s", extension[1:])
-		if extension == ".jpg" {
-			imageContentType = "image/jpeg"
-		}
-		panicErr(imageFile.Close())
 
 		// Generate HTML with image based on template
-		html, err := template.ParseFiles("template.gohtml")
+		err = createHtml(
+			fmt.Sprintf("/tmp/%s.html", filename),
+			"template.gohtml",
+			templateValues{
+				Domain:    domain,
+				Id:        filename,
+				ImageFile: filename + extension,
+				Width:     width,
+				Height:    height,
+				SiteName:  siteName,
+				Type:      imageContentType,
+			})
 		panicErr(err)
-		htmlFile, err := os.Create(fmt.Sprintf("/tmp/%s.html", filename))
-		panicErr(err)
-		templateParams := templateValues{
-			Domain:    domain,
-			Id:        filename,
-			ImageFile: filename + extension,
-			Width:     width,
-			Height:    height,
-			SiteName:  siteName,
-			Type:      imageContentType,
-		}
-		err = html.Execute(htmlFile, templateParams)
-		panicErr(err)
-		panicErr(htmlFile.Close())
 
 		// Copy input image to hosting bucket
 		copyInput := &s3.CopyObjectInput{
-			Bucket:               aws.String(targetBucket),
-			CopySource:           aws.String(fmt.Sprintf("%s/%s", record.S3.Bucket.Name, record.S3.Object.URLDecodedKey)),
+			Bucket: aws.String(targetBucket),
+			CopySource: aws.String(fmt.Sprintf("%s/%s", record.S3.Bucket.Name,
+				record.S3.Object.URLDecodedKey)),
 			Key:                  aws.String(filename + "/" + filename + extension),
 			ContentType:          aws.String(imageContentType),
 			ServerSideEncryption: types.ServerSideEncryptionAes256,
@@ -145,7 +183,7 @@ func handler(ctx context.Context, s3Event events.S3Event) error {
 		panicErr(err)
 
 		// Upload generated HTML to hosting bucket
-		htmlFile, err = os.Open(fmt.Sprintf("/tmp/%s.html", filename))
+		htmlFile, err := os.Open(fmt.Sprintf("/tmp/%s.html", filename))
 		panicErr(err)
 		putObjectInput := &s3.PutObjectInput{
 			Bucket:               aws.String(targetBucket),
@@ -166,7 +204,8 @@ func handler(ctx context.Context, s3Event events.S3Event) error {
 
 		// Notify SNS subscribers of completion
 		publishInput := &sns.PublishInput{
-			Message:  aws.String(fmt.Sprintf("Image processing is now complete - available at:\nhttps://%s/%s/", domain, filename)),
+			Message: aws.String(fmt.Sprintf("Image processing is now complete - available at:\n"+
+				"https://%s/%s/", domain, filename)),
 			Subject:  aws.String("Image processing complete"),
 			TopicArn: aws.String(topicArn),
 		}

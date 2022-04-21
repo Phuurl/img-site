@@ -18,12 +18,16 @@ jobs:
       - name: Get tools
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@latest
-          curl -sfL https://raw.githubusercontent.com/securego/gosec/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.9.6
+          curl -sfL https://raw.githubusercontent.com/securego/gosec/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.11.0
       - name: Run Staticcheck
         run: |
           staticcheck -f stylish ./...
         working-directory: ingest-fn
       - name: Run Gosec
         run: |
-          gosec -verbose text ./...
+          gosec -exclude=G304 -verbose text ./...
+        working-directory: ingest-fn
+      - name: Run tests
+        run: |
+          go test -v
         working-directory: ingest-fn
