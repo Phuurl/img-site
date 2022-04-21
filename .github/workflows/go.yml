@@ -25,7 +25,7 @@ jobs:
         working-directory: ingest-fn
       - name: Run Gosec
         run: |
-          gosec -verbose text ./...
+          gosec -exclude=G304 -verbose text ./...
         working-directory: ingest-fn
       - name: Run tests
         run: |
