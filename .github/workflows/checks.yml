@@ -44,7 +44,7 @@ jobs:
           go test -v
         working-directory: ingest-fn
   deploy-pr-stack:
-    if: ${{ github.event == "pull_request" }}
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
