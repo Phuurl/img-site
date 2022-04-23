@@ -67,7 +67,7 @@ jobs:
           sed -i -e "s|stack_name = \"{}\"|stack_name = \"GITHUB-Phuurl-img-site-PR-${PRNUM}\"|g" samconfig.toml
           sed -i -e "s|s3_bucket = \"{}\"|s3_bucket = \"${SAM_BUCKET}\"|g" samconfig.toml
           sed -i -e "s|s3_prefix = \"{}\"|s3_prefix = \"GITHUB-Phuurl-img-site-PR-${PRNUM}\"|g" samconfig.toml
-          sed -i -e "s|parameter_overrides = \"{}\"|parameter_overrides = \"UploadBucketName=\\\\\"github-phuurl-img-site-pr-upload-${PRNUM}\\\\\" EmailNotificationEnabled=\\\\\"false\\\\\" NotificationEmail=\\\\\"x\\\\\" SiteName=\\\\\"GITHUB-Phuurl-img-site-PR-${PRNUM}\\\\\" NoDomain=\\\\\"true\\\\\" Domain=\\\\\"x\\\\\" CertArn=\\\\\"x\\\\\" CreateUploadIamUser=\\\\\"false\\\\\"\"|g" samconfig.toml
+          sed -i -e "s|parameter_overrides = \"{}\"|parameter_overrides = \"UploadBucketName=\\\\\"github-phuurl-img-site-pr-upload-${PRNUM}\\\\\" EmailNotificationEnabled=\\\\\"false\\\\\" NotificationEmail=\\\\\"x\\\\\" SiteName=\\\\\"GITHUB-Phuurl-img-site-PR-${PRNUM}\\\\\" NoDomain=\\\\\"true\\\\\" Domain=\\\\\"x\\\\\" CertArn=\\\\\"x\\\\\" CloudFrontRedirectFunctionName=\\\\\"GITHUB_Phuurl_img_site_pr_${PRNUM}_index_redirect_func\\\\\" CreateUploadIamUser=\\\\\"false\\\\\"\"|g" samconfig.toml
           sed -i -e "s|tags = \"{}\"|tags = \"project=\\\\\"github\\\\\" pr=\\\\\"${PRNUM}\\\\\"\"|g" samconfig.toml
           cat samconfig.toml
         env:

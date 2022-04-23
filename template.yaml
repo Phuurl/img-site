@@ -44,6 +44,11 @@ Parameters:
     AllowedValues:
       - "true"
       - "false"
+  CloudFrontRedirectFunctionName:
+    Description: Name for the / -> /index CloudFront Function. Probably leave as default if not deploying more than one stack.
+    Type: String
+    Default: img_site_folder_index_redirect
+    AllowedPattern: ^[a-zA-Z0-9-_]{1,64}$
 
 Conditions:
   CreateUser: !Equals
@@ -211,7 +216,7 @@ Resources:
       FunctionConfig:
         Comment: Redirect directory level requests to index.html
         Runtime: cloudfront-js-1.0
-      Name: img_site_folder_index_redirect
+      Name: !Ref CloudFrontRedirectFunctionName
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
