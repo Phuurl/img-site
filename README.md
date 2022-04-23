@@ -2,12 +2,12 @@
 
 ## Diagram
 ```
-┌────► Uploader             ┌───────────────┐          ┌────────────┐
-│          │                │               │  Access  │            │
-│          │                │ LoggingBucket │◄─────────┤ CloudFront │◄──────────── Viewer
-│          │                │               │  Logs    │            │
-│          │ File           └───────────────┘          └────────────┘
-│          │ Upload                                           ▲
+┌────► Uploader             ┌───────────────┐  Access  ┌────────────┐
+│          │                │               │  logs    │            │
+│          │                │ LoggingBucket │◄─────────┤ CloudFront │◄─────── Viewer
+│          │                │               │          │            │
+│          │ Image          └───────────────┘          └────────────┘
+│          │ upload                                           ▲
 │          │                                                  │
 │          │                                                  │
 │          ▼                                                  ▼
@@ -16,9 +16,9 @@
 │  │ UploadBucket ├───────►│ IngestFunction ├────────►│ HostingBucket │
 │  │              │        │                ├───┐     │               │
 │  └──────────────┘        └────────────────┘   │     └───────────────┘
-│                           Generates HTML      └────┐
-│                           Copies to HostingBucket  │
-│                           Sends SNS notification   │
+│                           Generate HTML       └────┐
+│                           Upload to HostingBucket  │
+│                           Send SNS notification    │
 │                                                    │
 └────────────────────────────────────────────────────┘
       SNS email notification with generated link
