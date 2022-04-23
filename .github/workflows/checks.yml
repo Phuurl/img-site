@@ -1,4 +1,4 @@
-name: Check CloudFormation and Go, and deploy test stack
+name: Checks and PR stack deploy
 
 on:
   push:
