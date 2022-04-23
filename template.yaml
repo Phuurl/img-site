@@ -49,6 +49,10 @@ Parameters:
     Type: String
     Default: img_site_folder_index_redirect
     AllowedPattern: ^[a-zA-Z0-9-_]{1,64}$
+  CloudFrontCachePolicyName:
+    Description: Name for the CloudFront cache policy. Probably leave as default if not deploying more than one stack.
+    Type: String
+    Default: img-site-cache-policy
 
 Conditions:
   CreateUser: !Equals
@@ -190,7 +194,7 @@ Resources:
     Type: AWS::CloudFront::CachePolicy
     Properties:
       CachePolicyConfig:
-        Name: Default
+        Name: !Ref CloudFrontCachePolicyName
         MaxTTL: 31536000  # 1 year
         DefaultTTL: 604800  # 7 days
         MinTTL: 86400  # 1 day
