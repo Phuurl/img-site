@@ -49,4 +49,7 @@ jobs:
           PRNUM: ${{ github.event.number }}
       - name: SAM delete
         run: |
-          sam delete
+          sam delete --role-arn ${DEPLOY_ROLE} --config-env ci
+        env:
+          DEPLOY_ROLE: ${{ secrets.DEPLOY_ROLE_ARN }}
+
