@@ -84,14 +84,14 @@ jobs:
           DEPLOY_ROLE: ${{ secrets.DEPLOY_ROLE_ARN }}
       - name: Upload static assets
         run: |
-          HostingBucketName=$(aws cloudformation describe-stacks --stack-name "GITHUB-Phuurl-img-site-PR-${PRNUM}" --query "Stacks[0].Outputs[?OutputKey==`HostingBucketName`].OutputValue" --output text --region eu-west-1)
+          HostingBucketName=$(aws cloudformation describe-stacks --stack-name "GITHUB-Phuurl-img-site-PR-${PRNUM}" --query "Stacks[0].Outputs[?OutputKey==HostingBucketName].OutputValue" --output text --region eu-west-1)
           aws s3 cp error.html s3://${HostingBucketName}/
           aws s3 cp robots.txt s3://${HostingBucketName}/
         env:
           PRNUM: ${{ github.event.number }}
       - name: Upload input image
         run: |
-          UploadBucketName=$(aws cloudformation describe-stacks --stack-name "GITHUB-Phuurl-img-site-PR-${PRNUM}" --query "Stacks[0].Outputs[?OutputKey==`UploadBucketName`].OutputValue" --output text --region eu-west-1)
+          UploadBucketName=$(aws cloudformation describe-stacks --stack-name "GITHUB-Phuurl-img-site-PR-${PRNUM}" --query "Stacks[0].Outputs[?OutputKey==UploadBucketName].OutputValue" --output text --region eu-west-1)
           aws s3 cp ingest-fn/.test-resources/500x500.png s3://${UploadBucketName}/
         env:
           PRNUM: ${{ github.event.number }}
