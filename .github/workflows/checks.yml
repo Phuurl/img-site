@@ -75,7 +75,8 @@ jobs:
           SAM_BUCKET: ${{ secrets.SAM_BUCKET }}
       - name: SAM build
         run: |
-          sam build --use-container
+          sed -i -e "s|linux-arm64|linux-amd64|g" ingest-fn/Makefile
+          sam build
       - name: SAM deploy
         run: |
           sam deploy --role-arn ${DEPLOY_ROLE} --config-env ci
