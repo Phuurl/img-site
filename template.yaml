@@ -11,29 +11,49 @@ Parameters:
   UploadBucketName:
     Description: Name of the upload S3 bucket to create
     Type: String
+  EmailNotificationEnabled:
+    Description: Send notification email on image processing completion
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
   NotificationEmail:
-    Description: Email address to notify on processing completion
+    Description: Email address to notify on processing completion (not required if EmailNotificationEnabled is false)
     Type: String
   SiteName:
     Description: Name for site - used in HTML template for title
     Type: String
+  NoDomain:
+    Description: If `true`, the CloudFront distribution is deployed without a custom domain
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
   Domain:
-    Description: Domain name that the image site will be hosted on - eg img.example.com
+    Description: Domain name that the image site will be hosted on (not required if NoDomain is true) - eg img.example.com
     Type: String
   CertArn:
-    Description: ARN of the ACM certificate to use with the CloudFront distribution
+    Description: ARN of the ACM certificate to use with the CloudFront distribution (not required if NoDomain is true)
     Type: String
   CreateUploadIamUser:
     Description: Whether to create an IAM user for upload to the ingest bucket - user created if `true`
     Type: String
-    Default: false
+    Default: "false"
     AllowedValues:
-      - true
-      - false
+      - "true"
+      - "false"
 
 Conditions:
   CreateUser: !Equals
     - !Ref CreateUploadIamUser
+    - true
+  CloudFrontNoDomain: !Equals
+    - !Ref NoDomain
+    - true
+  EmailAlertEnabled: !Equals
+    - !Ref EmailNotificationEnabled
     - true
 
 Resources:
@@ -197,7 +217,7 @@ Resources:
     Properties:
       DistributionConfig:
         Aliases:
-          - !Ref Domain
+          - !If [CloudFrontNoDomain, !Ref AWS::NoValue, !Ref Domain]
         Comment: !Ref HostingBucket
         CustomErrorResponses:
           - ErrorCachingMinTTL: 300
@@ -237,17 +257,23 @@ Resources:
               OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}'
         PriceClass: "PriceClass_All"
         ViewerCertificate:
-          AcmCertificateArn: !Ref CertArn
-          MinimumProtocolVersion: TLSv1
-          SslSupportMethod: sni-only
+          !If
+            - CloudFrontNoDomain
+            - !Ref AWS::NoValue
+            - AcmCertificateArn: !Ref CertArn
+              MinimumProtocolVersion: TLSv1
+              SslSupportMethod: sni-only
   NotificationTopic:
     Type: AWS::SNS::Topic
     Properties:
       DisplayName: ImageIngest
       FifoTopic: false
       Subscription:
-        - Protocol: email
-          Endpoint: !Ref NotificationEmail
+        - !If
+          - EmailAlertEnabled
+          - Protocol: email
+            Endpoint: !Ref NotificationEmail
+          - !Ref AWS::NoValue
   IngestFunction:
     Type: AWS::Serverless::Function
     Properties:

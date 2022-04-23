@@ -1,0 +1,90 @@
+name: Check CloudFormation and Go, and deploy test stack
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  cloudformation-check:
+    runs-on: ubuntu-latest
+    container:
+      image: us-central1-docker.pkg.dev/phurl-public-docker/github-actions/actions-cfn-lint:latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v2
+      - name: Lint CloudFormation templates
+        run: |
+          cfn-lint --version
+          cfn-lint --include-checks I --info -t template.yaml
+  go-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+      - name: Get tools
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          curl -sfL https://raw.githubusercontent.com/securego/gosec/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.11.0
+      - name: Run Staticcheck
+        run: |
+          staticcheck -f stylish ./...
+        working-directory: ingest-fn
+      - name: Run Gosec
+        run: |
+          gosec -exclude=G304 -verbose text ./...
+        working-directory: ingest-fn
+      - name: Run tests
+        run: |
+          go test -v
+        working-directory: ingest-fn
+  deploy-pr-stack:
+    if: ${{ github.event == "pull_request" }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    timeout-minutes: 15
+    needs:
+      - cloudformation-check
+      - go-check
+    steps:
+      - run: sleep 5
+      - uses: actions/checkout@v2
+      - uses: aws-actions/configure-aws-credentials@v1.6.1
+        with:
+          role-to-assume: ${{ secrets.ACTIONS_ROLE_ARN }}
+          role-duration-seconds: 900
+          aws-region: eu-west-1
+      - name: Place SAM config
+        run: |
+          cp .ci/samconfig.toml.template samconfig.toml
+          sed -e "s|stack_name = \"{}\"|stack_name = \"GITHUB-Phuurl-img-site-PR-${PRNUM}\"|g" -i '' samconfig.toml
+          sed -e "s|s3_bucket = \"{}\"|s3_bucket = \"${SAM_BUCKET}\"|g" -i '' samconfig.toml
+          sed -e "s|s3_prefix = \"{}\"|s3_prefix = \"GITHUB-Phuurl-img-site-PR-${PRNUM}\"|g" -i '' samconfig.toml
+          sed -e "s|parameter_overrides = \"{}\"|parameter_overrides = \"UploadBucketName=\\\"github-phuurl-img-site-pr-upload-${PRNUM}\\\" EmailNotificationEnabled=\\\"false\\\" NotificationEmail=\\\"x\\\" SiteName=\\\"GITHUB-Phuurl-img-site-PR-${PRNUM}\\\" NoDomain=\\\"true\\\" Domain=\\\"x\\\" CertArn=\\\"x\\\" CreateUploadIamUser=\\\"false\\\"\"|g" -i '' samconfig.toml
+          sed -e "s|tags = \"{}\"|tags = \"project=\\\"github\\\",pr=\\\"${PRNUM}\\\"\"|g" -i '' samconfig.toml
+          cat samconfig.toml
+        env:
+          PRNUM: ${{ github.event.number }}
+          SAM_BUCKET: ${{ secrets.SAM_BUCKET }}
+      - name: SAM build
+        run: |
+          sam build --use-container
+      - name: SAM deploy
+        run: |
+          sam deploy --role-arn ${DEPLOY_ROLE} --config-env ci
+        env:
+          DEPLOY_ROLE: ${{ secrets.DEPLOY_ROLE_ARN }}
+      - name: Upload static assets
+        run: |
+          HostingBucketName=$(aws cloudformation describe-stacks --stack-name "GITHUB-Phuurl-img-site-PR-${PRNUM}" --query "Stacks[0].Outputs[?OutputKey==`HostingBucketName`].OutputValue" --output text --region eu-west-1)
+          aws s3 cp error.html s3://${HostingBucketName}/
+          aws s3 cp robots.txt s3://${HostingBucketName}/
+        env:
+          PRNUM: ${{ github.event.number }}
