@@ -1,4 +1,7 @@
 # img-site
+The creatively named `img-site` project is a serverless static image hosting site using AWS - you upload images to an input S3 bucket, and static web pages presenting them are generated and served through CloudFront over HTTPS.
+
+You can see an example [here](https://dp97yldgoy09a.cloudfront.net/39c66d7a-e793-412c-8209-33cb1ef63c7b/), or see below for more details and deployment instructions.
 
 ## Diagram
 ```
@@ -39,7 +42,6 @@
 | `CloudFrontRedirectFunctionName` | Name for the CloudFront redirect function - can leave as default unless you're deploying multiple copies of this stack  | `img_site_folder_index_redirect`                            |
 | `CloudFrontCachePolicyName`      | Name for the CloudFront cache policy - can leave as default unless you're deploying multiple copies of this stack       | `img-site-cache-policy`                                     |
 
-
 ## Deploy
 ```shell
 # Build and deploy SAM stack
@@ -49,3 +51,5 @@ sam deploy --guided
 # Now upload error.html and robots.txt to the deployed HostingBucket
 aws s3 cp error.html robots.txt s3://<name of HostingBucket>/
 ```
+
+Once the stack is deployed, you can then add the appropriate DNS (eg Route 53) entries for your domain to point it at the created CloudFront distribution.
