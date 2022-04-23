@@ -1,0 +1,13 @@
+version = 0.1
+[ci]
+[ci.deploy]
+[ci.deploy.parameters]
+stack_name = "{}"
+s3_bucket = "{}"
+s3_prefix = "{}"
+region = "eu-west-1"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "{}"
+image_repositories = []
+tags = "{}"
