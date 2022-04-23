@@ -45,6 +45,8 @@ jobs:
           UploadBucketName=$(aws cloudformation describe-stacks --stack-name "GITHUB-Phuurl-img-site-PR-${PRNUM}" --query "Stacks[0].Outputs[?OutputKey=='UploadBucketName'].OutputValue" --output text --region eu-west-1)
           python3 .ci/empty-versioned-bucket.py ${HostingBucketName}
           python3 .ci/empty-versioned-bucket.py ${UploadBucketName}
+        env:
+          PRNUM: ${{ github.event.number }}
       - name: SAM delete
         run: |
           sam delete
