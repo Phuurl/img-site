@@ -310,7 +310,11 @@ Resources:
         Variables:
           HOSTING_BUCKET: !Ref HostingBucket
           SITE_NAME: !Ref SiteName
-          DOMAIN: !Ref Domain
+          DOMAIN:
+            !If
+            - CloudFrontNoDomain
+            - !GetAtt CloudFrontDistribution.DomainName
+            - !Ref Domain
           SNS_TOPIC_ARN: !Ref NotificationTopic
     Metadata:
       BuildMethod: makefile
