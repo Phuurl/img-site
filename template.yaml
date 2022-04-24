@@ -5,7 +5,7 @@ Description: >
 
 Globals:
   Function:
-    Timeout: 30
+    Timeout: 90
 
 Parameters:
   UploadBucketName:
@@ -45,7 +45,7 @@ Parameters:
       - "true"
       - "false"
   CloudFrontRedirectFunctionName:
-    Description: Name for the / -> /index CloudFront Function. Probably leave as default if not deploying more than one stack.
+    Description: Name for the / -> /index.html CloudFront Function. Probably leave as default if not deploying more than one stack.
     Type: String
     Default: img_site_folder_index_redirect
     AllowedPattern: ^[a-zA-Z0-9-_]{1,64}$

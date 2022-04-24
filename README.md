@@ -3,7 +3,7 @@ The creatively named `img-site` project is a serverless static image hosting sit
 
 Generated pages also include tags to enable media previews on major social networks such as Twitter, Discord, Slack, and anywhere else that supports [OpenGraph](https://ogp.me/).
 
-You can see an example [here](https://dp97yldgoy09a.cloudfront.net/39c66d7a-e793-412c-8209-33cb1ef63c7b/), or see below for more details and deployment instructions.
+You can see an example [here](https://dp97yldgoy09a.cloudfront.net/5c2019ea-7a03-42d0-a750-290651a83222/), or see below for more details and deployment instructions.
 
 ## Diagram
 ```
@@ -54,4 +54,6 @@ sam deploy --guided
 aws s3 cp error.html robots.txt s3://<name of HostingBucket>/
 ```
 
-Once the stack is deployed, you can then add the appropriate DNS (eg Route 53) entries for your domain to point it at the created CloudFront distribution.
+Once the stack is deployed, you can then add the appropriate DNS (eg Route 53) entries for your domain to point it at the created CloudFront distribution (assuming `NoDomain` is `false`).
+
+You can then upload images to the UploadBucket for processing, and will receive email notifications (assuming `EmailNotificationEnabled` is `true`) once complete with a link to the generated static page on your img-site.
