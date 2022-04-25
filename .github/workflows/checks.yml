@@ -77,6 +77,13 @@ jobs:
         run: |
           sed -i -e "s|linux-arm64|linux-amd64|g" ingest-fn/Makefile
           sam build
+      - name: Slack notify
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data "{\"text\": PR deployment for `${PRNUM}`\"}" ${SLACK_WEBHOOK}
+        env:
+          PRNUM: ${{ github.event.number }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_PR_DEPLOYMENT_WEBHOOK }}
+        continue-on-error: true
       - name: SAM deploy
         run: |
           sam deploy --role-arn ${DEPLOY_ROLE} --config-env ci
