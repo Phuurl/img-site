@@ -79,7 +79,7 @@ jobs:
           sam build
       - name: Slack notify
         run: |
-          curl -X POST -H 'Content-type: application/json' --data "{\"text\": PR deployment for \`${PRNUM}\`\"}" ${SLACK_WEBHOOK}
+          curl -X POST -H 'Content-type: application/json' --data "{\"text\": \"PR deployment for \`${PRNUM}\`\"}" ${SLACK_WEBHOOK}
         env:
           PRNUM: ${{ github.event.number }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_PR_DEPLOYMENT_WEBHOOK }}
