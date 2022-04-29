@@ -1,0 +1,58 @@
+name: PR Cleanup
+
+on:
+  pull_request:
+    types:
+      - closed
+
+jobs:
+  cleanup-pr-stack:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    timeout-minutes: 15
+    steps:
+      - run: sleep 5
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+      - uses: aws-actions/configure-aws-credentials@v1.6.1
+        with:
+          role-to-assume: ${{ secrets.ACTIONS_ROLE_ARN }}
+          role-duration-seconds: 900
+          aws-region: eu-west-1
+      - name: Install boto3 for Python script
+        run: |
+          pip3 install boto3
+      - name: Place SAM config
+        run: |
+          cp .ci/samconfig.toml.template samconfig.toml
+          sed -i -e "s|stack_name = \"{}\"|stack_name = \"GITHUB-Phuurl-img-site-PR-${PRNUM}\"|g" samconfig.toml
+          sed -i -e "s|s3_bucket = \"{}\"|s3_bucket = \"${SAM_BUCKET}\"|g" samconfig.toml
+          sed -i -e "s|s3_prefix = \"{}\"|s3_prefix = \"GITHUB-Phuurl-img-site-PR-${PRNUM}\"|g" samconfig.toml
+          sed -i -e "s|parameter_overrides = \"{}\"|parameter_overrides = \"UploadBucketName=\\\\\"github-phuurl-img-site-pr-upload-${PRNUM}\\\\\" EmailNotificationEnabled=\\\\\"false\\\\\" NotificationEmail=\\\\\"x\\\\\" SiteName=\\\\\"GITHUB-Phuurl-img-site-PR-${PRNUM}\\\\\" NoDomain=\\\\\"true\\\\\" Domain=\\\\\"x\\\\\" CertArn=\\\\\"x\\\\\" CloudFrontRedirectFunctionName=\\\\\"GITHUB_Phuurl_img_site_PR_${PRNUM}_index_redirect_func\\\\\" CreateUploadIamUser=\\\\\"false\\\\\"\"|g" samconfig.toml
+          sed -i -e "s|tags = \"{}\"|tags = \"project=\\\\\"github\\\\\" pr=\\\\\"${PRNUM}\\\\\"\"|g" samconfig.toml
+          cat samconfig.toml
+        env:
+          PRNUM: ${{ github.event.number }}
+          SAM_BUCKET: ${{ secrets.SAM_BUCKET }}
+      - name: Empty buckets
+        run: |
+          HostingBucketName=$(aws cloudformation describe-stacks --stack-name "GITHUB-Phuurl-img-site-PR-${PRNUM}" --query "Stacks[0].Outputs[?OutputKey=='HostingBucketName'].OutputValue" --output text --region eu-west-1)
+          UploadBucketName=$(aws cloudformation describe-stacks --stack-name "GITHUB-Phuurl-img-site-PR-${PRNUM}" --query "Stacks[0].Outputs[?OutputKey=='UploadBucketName'].OutputValue" --output text --region eu-west-1)
+          python3 .ci/empty-versioned-bucket.py ${HostingBucketName}
+          python3 .ci/empty-versioned-bucket.py ${UploadBucketName}
+        env:
+          PRNUM: ${{ github.event.number }}
+      - name: SAM delete
+        run: |
+          sam delete --config-env ci --no-prompts
+      - name: Slack notify
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data "{\"text\": \":dusty_stick: Cleanup for PR \`Phuurl/img-site/#${PRNUM}\`\"}" ${SLACK_WEBHOOK}
+        env:
+          PRNUM: ${{ github.event.number }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_PR_DEPLOYMENT_WEBHOOK }}
