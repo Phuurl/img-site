@@ -3,7 +3,7 @@ The creatively named `img-site` project is a serverless static image hosting sit
 
 Generated pages also include tags to enable media previews on major social networks such as Twitter, Discord, Slack, and anywhere else that supports [OpenGraph](https://ogp.me/).
 
-You can see an example [here](https://dp97yldgoy09a.cloudfront.net/5c2019ea-7a03-42d0-a750-290651a83222/), or see below for more details and deployment instructions.
+You can see an example [here](https://dp97yldgoy09a.cloudfront.net/5c2019ea-7a03-42d0-a750-290651a83222/), or see below for more details and deployment instructions. 
 
 ## Diagram
 ```
