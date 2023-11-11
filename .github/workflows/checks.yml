@@ -17,7 +17,7 @@ jobs:
       - name: Lint CloudFormation templates
         run: |
           cfn-lint --version
-          cfn-lint --include-checks I --info -t template.yaml
+          cfn-lint --include-checks I --info --non-zero-exit-code error -t template.yaml
   go-check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
