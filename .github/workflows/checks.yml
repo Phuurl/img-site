@@ -17,7 +17,7 @@ jobs:
       - name: Lint CloudFormation templates
         run: |
           cfn-lint --version
-          cfn-lint --include-checks I --info -t template.yaml
+          cfn-lint --include-checks I --info --non-zero-exit-code error -t template.yaml
   go-check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -26,11 +26,11 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: 1.21
       - name: Get tools
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@latest
-          curl -sfL https://raw.githubusercontent.com/securego/gosec/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.11.0
+          curl -sfL https://raw.githubusercontent.com/securego/gosec/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.18.2
       - name: Run Staticcheck
         run: |
           staticcheck -f stylish ./...
@@ -75,7 +75,13 @@ jobs:
           SAM_BUCKET: ${{ secrets.SAM_BUCKET }}
       - name: SAM build
         run: |
+          # Ensure we have the latest SAM CLI
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew install aws-sam-cli
+          # Update Makefile to use Intel for ease
           sed -i -e "s|linux-arm64|linux-amd64|g" ingest-fn/Makefile
+          sam --version
+          # Attempt build
           sam build
       - name: Slack notify
         run: |
