@@ -285,10 +285,12 @@ Resources:
           - !Ref AWS::NoValue
   IngestFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
     Properties:
       CodeUri: ingest-fn/
-      Handler: ingest-fn
-      Runtime: provided.al2
+      Handler: bootstrap
+      Runtime: provided.al2023
       Architectures:
         - arm64
       MemorySize: 128
@@ -316,8 +318,6 @@ Resources:
             - !GetAtt CloudFrontDistribution.DomainName
             - !Ref Domain
           SNS_TOPIC_ARN: !Ref NotificationTopic
-    Metadata:
-      BuildMethod: makefile
 
 Outputs:
   CloudFrontDistributionDomainName:
