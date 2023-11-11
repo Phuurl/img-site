@@ -1,4 +1,4 @@
-# img-site
+# img-site 
 The creatively named `img-site` project is a serverless static image hosting site using AWS - you upload images to an input S3 bucket, and static web pages presenting them are generated and served through CloudFront over HTTPS.
 
 Generated pages also include tags to enable media previews on major social networks such as Twitter, Discord, Slack, and anywhere else that supports [OpenGraph](https://ogp.me/).
