@@ -77,7 +77,6 @@ Resources:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
             BucketKeyEnabled: true
-      AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -118,7 +117,6 @@ Resources:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
             BucketKeyEnabled: true
-      AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -144,6 +142,9 @@ Resources:
     UpdateReplacePolicy: Retain
     Properties:
       AccessControl: LogDeliveryWrite
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
