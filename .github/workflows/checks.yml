@@ -75,7 +75,13 @@ jobs:
           SAM_BUCKET: ${{ secrets.SAM_BUCKET }}
       - name: SAM build
         run: |
+          # Ensure we have the latest SAM CLI
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew install aws-sam-cli
+          # Update Makefile to use Intel for ease
           sed -i -e "s|linux-arm64|linux-amd64|g" ingest-fn/Makefile
+          sam --version
+          # Attempt build
           sam build
       - name: Slack notify
         run: |
